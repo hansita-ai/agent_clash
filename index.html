@@ -7,68 +7,73 @@
 <style>
 body {
     margin: 0;
-    font-family: Arial, sans-serif;
-    background: #111;
-    color: #f5f5f5;
+    font-family: "Segoe UI", Arial, sans-serif;
+    background: radial-gradient(circle, #2a2a2a, #0f0f0f);
+    color: #f2f2f2;
 }
 
 .screen {
     display: none;
-    padding: 40px;
-    max-width: 900px;
+    max-width: 1000px;
     margin: auto;
+    padding: 40px;
 }
 
-.active {
-    display: block;
-}
+.active { display: block; }
 
 h1, h2 {
     text-align: center;
+    letter-spacing: 1px;
+}
+
+.subtitle {
+    text-align: center;
+    color: #ccc;
+    margin-bottom: 40px;
 }
 
 button {
-    padding: 12px 24px;
-    font-size: 16px;
-    background: #ff9800;
+    background: linear-gradient(145deg, #ffb347, #ff9800);
     border: none;
-    border-radius: 6px;
-    cursor: pointer;
+    padding: 12px 28px;
+    border-radius: 8px;
+    font-size: 16px;
     font-weight: bold;
+    cursor: pointer;
+    box-shadow: 0 6px 0 #b36a00;
 }
 
-button:hover {
-    background: #e68900;
-}
+button:hover { transform: translateY(2px); box-shadow: 0 4px 0 #b36a00; }
+button:active { transform: translateY(6px); box-shadow: none; }
+
+.center { text-align: center; margin-top: 30px; }
 
 .card {
-    background: #1e1e1e;
-    padding: 20px;
-    border-radius: 10px;
-    margin: 15px 0;
+    background: #1b1b1b;
+    border-radius: 14px;
+    padding: 22px;
+    margin: 18px 0;
+    box-shadow: inset 0 0 0 2px #333, 0 10px 25px rgba(0,0,0,0.6);
 }
 
 input {
     padding: 6px;
-    font-size: 14px;
-}
-
-.center {
-    text-align: center;
-    margin-top: 30px;
+    border-radius: 6px;
+    border: none;
+    width: 90px;
 }
 
 .bar {
+    height: 16px;
     background: #333;
     border-radius: 10px;
-    height: 16px;
     overflow: hidden;
-    margin-bottom: 10px;
+    margin: 8px 0 12px;
 }
 
 .fill {
-    background: #4caf50;
     height: 100%;
+    background: linear-gradient(90deg, #4caf50, #8bc34a);
 }
 </style>
 </head>
@@ -78,8 +83,8 @@ input {
 <!-- HOME -->
 <div id="home" class="screen active">
     <h1>AGENT CLASH</h1>
-    <p style="text-align:center;">
-        Competitive Resource Allocation Game
+    <p class="subtitle">
+        Competitive Resource Allocation Board Game
     </p>
     <div class="center">
         <button onclick="go('setup')">Play Now</button>
@@ -91,9 +96,9 @@ input {
     <h2>Game Setup</h2>
     <div class="card center">
         Players (1–5):
-        <input type="number" id="players" min="1" max="5" value="2"><br><br>
+        <input id="players" type="number" min="1" max="5" value="2"><br><br>
         Rounds:
-        <input type="number" id="rounds" min="1" max="10" value="5"><br><br>
+        <input id="rounds" type="number" min="1" max="10" value="5"><br><br>
         <button onclick="startGame()">Start Game</button>
     </div>
 </div>
@@ -101,7 +106,7 @@ input {
 <!-- GAME -->
 <div id="game" class="screen">
     <h2 id="roundTitle"></h2>
-    <form id="gameForm"></form>
+    <div id="gameArea"></div>
     <div class="center">
         <button onclick="endRound()">End Round</button>
     </div>
@@ -110,18 +115,15 @@ input {
 <!-- RESULT -->
 <div id="result" class="screen">
     <h2>Final Results</h2>
-    <div id="resultsBox"></div>
+    <div id="results"></div>
     <div class="center">
         <button onclick="go('home')">Play Again</button>
     </div>
 </div>
 
 <script>
-let numPlayers = 0;
-let totalRounds = 0;
-let currentRound = 1;
-let resources = [];
-let scores = [];
+let players, rounds, currentRound;
+let resources = [], scores = [];
 const multiplier = 1.5;
 
 function go(id) {
@@ -130,75 +132,67 @@ function go(id) {
 }
 
 function startGame() {
-    numPlayers = parseInt(document.getElementById("players").value);
-    totalRounds = parseInt(document.getElementById("rounds").value);
-
-    resources = Array(numPlayers).fill(100);
-    scores = Array(numPlayers).fill(0);
+    players = +playersInput.value;
+    rounds = +roundsInput.value;
     currentRound = 1;
-
+    resources = Array(players).fill(100);
+    scores = Array(players).fill(0);
     renderRound();
     go('game');
 }
 
+const playersInput = document.getElementById("players");
+const roundsInput = document.getElementById("rounds");
+
 function renderRound() {
-    document.getElementById("roundTitle").innerText = "Round " + currentRound;
-    const form = document.getElementById("gameForm");
-    form.innerHTML = "";
+    roundTitle.innerText = "Round " + currentRound;
+    gameArea.innerHTML = "";
 
     resources.forEach((r, i) => {
-        form.innerHTML += `
+        const percent = Math.min((r / 200) * 100, 100);
+        gameArea.innerHTML += `
         <div class="card">
             <strong>Player ${i + 1}</strong><br>
             Resources: ${r}
             <div class="bar">
-                <div class="fill" style="width:${Math.min(r,200)/2}%"></div>
+                <div class="fill" style="width:${percent}%"></div>
             </div>
             Contribute:
-            <input type="number" min="0" max="${r}" value="0" id="p${i}">
-        </div>
-        `;
+            <input type="number" id="p${i}" min="0" max="${r}" value="0">
+        </div>`;
     });
 }
 
 function endRound() {
     let pool = 0;
-
-    for (let i = 0; i < numPlayers; i++) {
-        let c = parseInt(document.getElementById(`p${i}`).value);
+    for (let i = 0; i < players; i++) {
+        let c = +document.getElementById(`p${i}`).value;
         c = Math.min(c, resources[i]);
         resources[i] -= c;
         pool += c;
     }
 
     pool = Math.floor(pool * multiplier);
-    let share = Math.floor(pool / numPlayers);
+    const share = Math.floor(pool / players);
 
-    for (let i = 0; i < numPlayers; i++) {
+    for (let i = 0; i < players; i++) {
         resources[i] += share;
         scores[i] += resources[i];
     }
 
     currentRound++;
-
-    if (currentRound > totalRounds) {
-        showResults();
-    } else {
-        renderRound();
-    }
+    currentRound > rounds ? showResults() : renderRound();
 }
 
 function showResults() {
-    const box = document.getElementById("resultsBox");
-    box.innerHTML = "";
-
-    let winner = scores.indexOf(Math.max(...scores)) + 1;
+    results.innerHTML = "";
+    const winner = scores.indexOf(Math.max(...scores)) + 1;
 
     scores.forEach((s, i) => {
-        box.innerHTML += `<div class="card">Player ${i + 1}: ${s}</div>`;
+        results.innerHTML += `<div class="card">Player ${i + 1} Score: ${s}</div>`;
     });
 
-    box.innerHTML += `<h3 style="text-align:center;">🏆 Winner: Player ${winner}</h3>`;
+    results.innerHTML += `<h3 class="center">🏆 Winner: Player ${winner}</h3>`;
     go('result');
 }
 </script>
